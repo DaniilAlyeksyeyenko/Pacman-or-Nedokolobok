@@ -1,19 +1,35 @@
 import DisplayObject from './DisplayObject.js'
 
 export default class Sprite extends DisplayObject {
+  play = true
+  
   constructor (props = {}) {
     super(props)
 
     this.image = props.image ?? null
     this.frame = props.frame ?? null
-    this.debug = props.debug ?? false
+
+    this.speedX = props.speedX ?? 0
+    this.speedY = props.speedY ?? 0
+    this.nextDirection = null
+  }
+
+  getNextPosition () {
+    return {
+      x: this.x + this.speedX,
+      y: this.y + this.speedY,
+      width: this.width,
+      height: this.height
+    }
   }
 
   update () {
-
+    this.x += this.speedX
+    this.y += this.speedY
   }
 
   draw (context) {
+    if (this.frame) {
     context.drawImage(
       this.image,
  
@@ -27,23 +43,8 @@ export default class Sprite extends DisplayObject {
       this.width,
       this.height
     )
-
-    if (this.debug){
-      context.beginPath()
-      context.rect(this.x, this.y, this.width, this.height)
-      context.fillStyle = 'rgba(0, 255, 0, 0.3)'
-      context.fill()
-
-      context.beginPath()
-      context.rect(this.x, this.y, this.width, this.height)
-      context.lineWidth = 3
-      context.strokeStyle = 'green'
-      context.stroke()
-
-      context.beginPath()
-      context.moveTo(this.x, this.y)
-      context.lineTo(this.x + this.width, this.y + this.height)
-      context.stroke()
     }
+    super.draw(context)
+    
   }
 }
