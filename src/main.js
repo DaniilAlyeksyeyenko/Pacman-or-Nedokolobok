@@ -4,47 +4,63 @@
  import Cinematic from './Cinematic.js' 
  import { getRandom, haveCollision } from './Additional.js'
  import DisplayObject from './DisplayObject.js'
+ import Group from './Group.js'
+ import Score from './Text.js'
 
  const scale = 3
 
  export default async function main () {
    const game = new Game({
      width: 672,
-     height: 744,
+     height: 794,
      background: 'black'
    })
 
+   const party = new Group()
+   party.ofSetY = 50
+   game.stage.add(party)
+
+   const score = new Score({
+     x:game.canvas.width / 2,
+     y:35,
+     content: "Score: 0",
+     fill: "white"
+   })
+
+   score.points = 0
+
+   game.stage.add(score)
    document.body.append(game.canvas)
 
    const image = await loadImage('/sets/spritesheet.png')
    const atlas = await loadJSON('/sets/atlas.json')
- 
-const maze = new Sprite({
-  image,
-  x: 0,
-  y: 0,
-  width: atlas.maze.width * scale,
-  height: atlas.maze.height * scale,
-  frame: atlas.maze
-})
-game.canvas.width = maze.width
-game.canvas.height = maze.height
-
-let foods = atlas.maze.foods
- .map(food => ({
+   
+   const maze = new Sprite({
+   image,
+   x: 0,
+   y: 0,
+   width: atlas.maze.width * scale,
+   height: atlas.maze.height * scale,
+   frame: atlas.maze
+   })
+   //game.canvas.width = maze.width
+   //game.canvas.height = maze.height
+   
+   let foods = atlas.maze.foods
+   .map(food => ({
    ...food,
    x: food.x * scale,
    y: food.y * scale,
    width: food.width * scale,
    height: food.height * scale,
- }))
- .map(food => new Sprite({
+   }))
+   .map(food => new Sprite({
    image,
    frame: atlas.food,
    ...food
- }))
-
-  const pacman = new Cinematic({
+   }))
+   
+   const pacman = new Cinematic({
     image,
     x: atlas.position.pacman.x * scale,
     y: atlas.position.pacman.y * scale,
@@ -69,10 +85,10 @@ let foods = atlas.maze.foods
      ghost.start(atlas.position[color].direction)
      ghost.nextDirection = atlas.position[color].direction
      ghost.isBlue = false
-
+   
      return ghost
    })
-
+   
    const walls = atlas.maze.walls.map(wall => new DisplayObject({
      x: wall.x * scale,
      y: wall.y * scale,
@@ -80,7 +96,7 @@ let foods = atlas.maze.foods
      height: wall.height * scale,
      //debug: true,
    }))
-
+   
    const leftPortal = new DisplayObject({
      x: atlas.position.leftPortal.x * scale,
      y: atlas.position.leftPortal.y * scale,
@@ -88,15 +104,15 @@ let foods = atlas.maze.foods
      height: atlas.position.leftPortal.height * scale,
      //debug: true,
    })
-
+   
    const rightPortal = new DisplayObject({
     x: atlas.position.rightPortal.x * scale,
     y: atlas.position.rightPortal.y * scale,
     width: atlas.position.rightPortal.width * scale,
     height: atlas.position.rightPortal.height * scale,
     //debug: true,
-  })
-
+   })
+   
    const tablets = atlas.position.tablets
     .map(tablet => new Sprite({
       image,
@@ -106,85 +122,96 @@ let foods = atlas.maze.foods
       width: tablet.width * scale,
       height: tablet.height * scale,
     }))
-
-   game.stage.add(maze)
-   foods.forEach(food => game.stage.add(food))
-   game.stage.add(pacman)
-   ghosts.forEach(ghost => game.stage.add(ghost))
-   walls.forEach(wall => game.stage.add(wall))
-   game.stage.add(leftPortal)
-   game.stage.add(rightPortal)
-   tablets.forEach(tablet => game.stage.add(tablet))
-
+   
+   party.add(maze)
+   foods.forEach(food => party.add(food))
+   party.add(pacman)
+   ghosts.forEach(ghost => party.add(ghost))
+   walls.forEach(wall => party.add(wall))
+   party.add(leftPortal)
+   party.add(rightPortal)
+   tablets.forEach(tablet => party.add(tablet))
+   
    game.update = () => {
      //Проверка на хавку
      const eated = []
      for (const food of foods) {
        if (haveCollision(pacman, food)){
         eated.push(food)
-        game.stage.remove(food)
+        party.remove(food)
+        score.points += 100
+        score.content = `Score: ${score.points}`
        }
      }
      foods = foods.filter(food => !eated.includes(food))
-
+   
      //Смена направления движения
-
+   
      changeDirection(pacman)
      ghosts.forEach(changeDirection)
-
+   
      //Головой об стену призрачная версия
      for (const ghost of ghosts) {
        if (!ghost.play) {
          return
        }
-
+   
       const wall = getWallCollision(ghost.getNextPosition())
       if (wall) {
        ghost.speedX = 0
        ghost.speedY = 0
       }
-
-      if (ghost.speedX === 0 && ghost.speedY === 0) {
-
-       if (ghost.animation.name === 'up') {
-         ghost.nextDirection = getRandom('left', 'right', 'down')
-       }
-
-       else if (ghost.animation.name === 'down') {
-        ghost.nextDirection = getRandom('left', 'right', 'up')
-       }
-
-       else if (ghost.animation.name === 'right') {
-        ghost.nextDirection = getRandom('left', 'down', 'up')
-       }
-
-       else if (ghost.animation.name === 'left') {
-        ghost.nextDirection = getRandom('down', 'right', 'up')
-       }
+   
+      if ((ghost.speedX === 0 && ghost.speedY === 0) || Math.random() > 0.95){
+        if (ghost.animation.name === 'up') {
+          ghost.nextDirection = getRandom('left', 'right')
+        }
+   
+        else if (ghost.animation.name === 'down') {
+         ghost.nextDirection = getRandom('left', 'right')
+        }
+   
+        else if (ghost.animation.name === 'right') {
+         ghost.nextDirection = getRandom('down', 'up')
+        }
+   
+        else if (ghost.animation.name === 'left') {
+         ghost.nextDirection = getRandom('down', 'up')
+        }
       }
-
+   
       if (pacman.play && ghost.play && haveCollision(pacman, ghost)) {
         if (ghost.isBlue) {
           ghost.play = false
           ghost.speedX = 0
           ghost.speedY = 0
-          game.stage.remove(ghost)
+          party.remove(ghost)
           ghosts.splice(ghosts.indexOf(ghost), 1)
+          score.points += 5000
+          score.content = `Score: ${score.points}`
         } else {
-
+   
         pacman.speedX = 0
         pacman.speedY = 0
         pacman.start('die', {
           onEnd () {
             pacman.play = false
             pacman.stop()
-            game.stage.remove(pacman)
+            party.remove(pacman)
           }
         })
        }
       }
-     }
 
+      if (haveCollision(ghost, leftPortal)) {
+        ghost.x = atlas.position.rightPortal.x * scale - ghost.width - 1
+      }
+  
+      if (haveCollision(ghost, rightPortal)) {
+        ghost.x = atlas.position.leftPortal.x * scale + ghost.width + 1
+      }
+     }
+   
      //Головой об стену
      const wall = getWallCollision(pacman.getNextPosition())
      if (wall) {
@@ -192,29 +219,31 @@ let foods = atlas.maze.foods
       pacman.speedX = 0
       pacman.speedY = 0
      }
-
+   
      if (haveCollision(pacman, leftPortal)) {
        pacman.x = atlas.position.rightPortal.x * scale - pacman.width - 1
      }
-
+   
      if (haveCollision(pacman, rightPortal)) {
       pacman.x = atlas.position.leftPortal.x * scale + pacman.width + 1
     }
-
+   
+   
+   
     for (let i = 0; i < tablets.length; i++) {
       const tablet = tablets[i]
-
+   
       if (haveCollision(pacman, tablet)) {
         tablets.splice(i, 1)
-        game.stage.remove(tablet)
-
+        party.remove(tablet)
+   
         ghosts.forEach(ghost => {
           ghost.originalAnimations = ghost.animations
           ghost.animations = atlas.blueGhost
           ghost.isBlue = true
           ghost.start(ghost.animation.name)
         })
-
+   
         setTimeout(() => {
           ghosts.forEach(ghost => {
             ghost.animations = ghost.originalAnimations
@@ -222,12 +251,12 @@ let foods = atlas.maze.foods
             ghost.start(ghost.animation.name)
           })
         }, 5000)
-
+   
         break
       }
     }
    }
-
+   
    document.addEventListener('keydown', event => {
      if (!pacman.play) {
        return
@@ -235,20 +264,20 @@ let foods = atlas.maze.foods
     if (event.key === "ArrowLeft") {
       pacman.nextDirection = 'left'
     }
-
+   
     else if (event.key === "ArrowRight") {
       pacman.nextDirection = 'right'
     }
-
+   
     else if (event.key === "ArrowUp") {
       pacman.nextDirection = 'up'
     }
-
+   
     else if (event.key === "ArrowDown") {
       pacman.nextDirection = 'down'
     }
    })
-
+   
    function getWallCollision (obj) {
     for (const wall of walls) {
       if (haveCollision(wall, obj)) {
@@ -257,12 +286,12 @@ let foods = atlas.maze.foods
     }
     return null
    }
-
+   
    function changeDirection (sprite) {
     if (!sprite.nextDirection) {
       return
     }
-
+   
     if (sprite.nextDirection === 'up') {
       sprite.y -= 10
       if (!getWallCollision(sprite)) {
@@ -273,7 +302,7 @@ let foods = atlas.maze.foods
       }
       sprite.y += 10
      }
-
+   
      else if (sprite.nextDirection === 'down') {
       sprite.y += 10
       if (!getWallCollision(sprite)) {
@@ -284,7 +313,7 @@ let foods = atlas.maze.foods
       }
       sprite.y -= 10
      }
-
+   
      else if (sprite.nextDirection === 'left') {
       sprite.x -= 10
       if (!getWallCollision(sprite)) {
@@ -295,7 +324,7 @@ let foods = atlas.maze.foods
       }
       sprite.x += 10
      }
-
+   
      else if (sprite.nextDirection === 'right') {
       sprite.x += 10
       if (!getWallCollision(sprite)) {
@@ -307,4 +336,4 @@ let foods = atlas.maze.foods
       sprite.x -= 10
      }
    }
- }
+   }
